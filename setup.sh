@@ -42,9 +42,5 @@ for component in tmux vim zsh; do
     fi
 done
 
-# install claude code
-git clone git@github.com:cv28/cc-config.git ~/.claude
-curl -fsSL https://claude.ai/install.sh | bash -s latest
-
 echo "=== All setups completed! ==="
 echo "Restart your terminal or run 'source ~/.zshrc' to apply changes."

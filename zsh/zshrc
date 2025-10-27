@@ -29,14 +29,20 @@ alias s='subl'
 
 case "$OSTYPE" in
   darwin*)  # macOS
-    alias pwd='pwd | pbcopy && pbpaste'
-    alias vz="subl ~/.zshrc"
+    alias pwd='pwd | tee >(pbcopy)'
+    if command -v subl >/dev/null 2>&1; then
+      alias vz="subl ~/.zshrc"
+    else
+      alias vz="vim ~/.zshrc"
+    fi
     ;;
   linux*)   # Linux
     alias vz="vim ~/.zshrc"
     ;;
   *)
+    ;;
 esac
 
 # Preferred editor for local and remote sessions
 export EDITOR='vim'
+export TERM=xterm-256color
