@@ -48,7 +48,7 @@ map <Leader> <Plug>(easymotion-prefix)
 noremap <silent><expr> /  incsearch#go(<SID>incsearch_config())
 
 "cut with m, set marker with gm
-set clipboard=unnamed
+" set clipboard=unnamed
 
 " release Ctrl+N/P key bindings
 let g:EasyClipUsePasteToggleDefaults = 0
