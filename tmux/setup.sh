@@ -3,68 +3,30 @@ set -euo pipefail
 
 echo "=== tmux cross-platform bootstrap (macOS & Linux) ==="
 
-# ---------- 0) Detect OS / package manager ----------
-OS="$(uname -s)"
-PKG=""
-if [[ "$OS" == "Darwin" ]]; then
-  if ! command -v brew >/dev/null 2>&1; then
-    echo "[X] Homebrew not found on macOS. Install from https://brew.sh and re-run."
+# ---------- 1) Check & install dependencies ----------
+if ! command -v tmux >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then
+  echo "[i] Missing dependencies, installing..."
+  OS="$(uname -s)"
+
+  if [[ "$OS" == "Darwin" ]]; then
+    command -v brew >/dev/null 2>&1 || { echo "[X] Install Homebrew: https://brew.sh"; exit 1; }
+    brew list tmux >/dev/null 2>&1 || brew install tmux
+    brew list git  >/dev/null 2>&1 || brew install git
+  elif command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update -y
+    sudo apt-get install -y tmux git xclip wl-clipboard
+  else
+    echo "[X] Unsupported platform. Install tmux & git manually."
     exit 1
   fi
-  PKG="brew"
-else
-  # Linux – detect a common package manager
-  if command -v apt-get >/dev/null 2>&1; then PKG="apt";
-  elif command -v dnf >/dev/null 2>&1; then PKG="dnf";
-  elif command -v yum >/dev/null 2>&1; then PKG="yum";
-  elif command -v pacman >/dev/null 2>&1; then PKG="pacman";
-  elif command -v zypper >/dev/null 2>&1; then PKG="zypper";
-  else
-    echo "[!] Unknown package manager. Please install tmux & git manually, then re-run."
-    PKG=""
-  fi
 fi
-echo "[i] OS = $OS, pkgmgr = ${PKG:-unknown}"
 
-# ---------- 1) Install dependencies (tmux, git, clipboard tools) ----------
-install_pkg() {
-  case "$PKG" in
-    brew)
-      brew list tmux >/dev/null 2>&1 || brew install tmux
-      brew list git  >/dev/null 2>&1 || brew install git
-      # macOS clipboard is native (pbcopy), no extra deps
-      ;;
-    apt)
-      sudo apt-get update -y
-      sudo apt-get install -y tmux git xclip wl-clipboard || true
-      ;;
-    dnf)
-      sudo dnf install -y tmux git xclip wl-clipboard || true
-      ;;
-    yum)
-      sudo yum install -y tmux git xclip || true
-      # wl-clipboard may be unavailable on older yum repos
-      ;;
-    pacman)
-      sudo pacman -Sy --needed --noconfirm tmux git xclip wl-clipboard || true
-      ;;
-    zypper)
-      sudo zypper install -y tmux git xclip wl-clipboard || true
-      ;;
-    *)
-      echo "[!] Skip auto-install; ensure 'tmux' and 'git' exist in PATH."
-      ;;
-  esac
-}
-install_pkg
-
-# ---------- 2) Verify tmux & git ----------
-command -v tmux >/dev/null 2>&1 || { echo "[X] tmux not found after install."; exit 2; }
-command -v git  >/dev/null 2>&1 || { echo "[X] git not found after install."; exit 2; }
+command -v tmux >/dev/null 2>&1 || { echo "[X] tmux not found."; exit 1; }
+command -v git  >/dev/null 2>&1 || { echo "[X] git not found."; exit 1; }
 echo "[✓] tmux: $(tmux -V)"
 echo "[✓] git:  $(git --version | awk '{print $3}')"
 
-# ---------- 3) Install TPM ----------
+# ---------- 2) Install TPM ----------
 TPM_DIR="$HOME/.tmux/plugins/tpm"
 if [[ ! -d "$TPM_DIR" ]]; then
   echo "[i] Installing TPM → $TPM_DIR"
@@ -75,7 +37,7 @@ else
   (cd "$TPM_DIR" && git pull --ff-only || true)
 fi
 
-# ---------- 4) Copy config from local folder ----------
+# ---------- 3) Copy config ----------
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 SRC_CONF="$SCRIPT_DIR/tmux.conf"
 DST_CONF="$HOME/.tmux.conf"
@@ -85,13 +47,13 @@ fi
 cp -f "$SRC_CONF" "$DST_CONF"
 echo "[✓] Wrote $DST_CONF"
 
-# ---------- 5) Restart tmux server & source config ----------
+# ---------- 4) Restart & source config ----------
 tmux kill-server >/dev/null 2>&1 || true
 tmux start-server
 tmux source-file "$DST_CONF" || true
 echo "[✓] tmux server started and config sourced"
 
-# ---------- 6) Non-interactive plugin install via TPM ----------
+# ---------- 5) Install plugins ----------
 # Use a separate named socket to avoid conflicts with user's live server.
 SOCK_NAME="tpm$$"
 SESSION="__tpm_install__"
@@ -104,7 +66,7 @@ tmux -L "$SOCK_NAME" kill-session -t "$SESSION" || true
 tmux -L "$SOCK_NAME" kill-server || true
 echo "[✓] Plugins installed"
 
-# ---------- 7) Minimal self-check ----------
+# ---------- 6) Self-check ----------
 tmux start-server
 tmux source-file "$DST_CONF" || true
 # Ensure server is running for config check
