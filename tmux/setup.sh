@@ -47,11 +47,13 @@ fi
 cp -f "$SRC_CONF" "$DST_CONF"
 echo "[✓] Wrote $DST_CONF"
 
-# ---------- 4) Restart & source config ----------
-tmux kill-server >/dev/null 2>&1 || true
-tmux start-server
-tmux source-file "$DST_CONF" || true
-echo "[✓] tmux server started and config sourced"
+# ---------- 4) Reload config ----------
+if [ -n "$TMUX" ]; then
+  tmux source-file "$DST_CONF"
+  echo "[✓] Config reloaded"
+else
+  echo "[i] Config written. Start tmux to apply."
+fi
 
 # ---------- 5) Install plugins ----------
 # Use a separate named socket to avoid conflicts with user's live server.
@@ -67,17 +69,15 @@ tmux -L "$SOCK_NAME" kill-server || true
 echo "[✓] Plugins installed"
 
 # ---------- 6) Self-check ----------
-tmux start-server
-tmux source-file "$DST_CONF" || true
-# Ensure server is running for config check
-tmux new-session -d -s temp_check 2>/dev/null || true
-PREFIX=$(tmux show -g prefix 2>/dev/null | awk '{print $2}')
-MOUSE=$(tmux show -gw mouse 2>/dev/null | awk '{print $3}')
-tmux kill-session -t temp_check 2>/dev/null || true
-echo "---- Self-check ----"
-echo "prefix = ${PREFIX:-N/A}    (expect: C-b)"
-echo "mouse  = ${MOUSE:-N/A}     (expect: on)"
-echo "plugins dir: $HOME/.tmux/plugins (expect: tpm, tmux-sensible, tmux-resurrect, tmux-continuum, tmux-yank)"
-echo "---------------------"
+if [ -n "$TMUX" ]; then
+  PREFIX=$(tmux show -g prefix 2>/dev/null | awk '{print $2}')
+  MOUSE=$(tmux show -gw mouse 2>/dev/null | awk '{print $3}')
+  echo "---- Self-check ----"
+  echo "prefix = ${PREFIX:-N/A}    (expect: C-b)"
+  echo "mouse  = ${MOUSE:-N/A}     (expect: on)"
+  echo "--------------------"
+fi
+echo "Plugins dir: $HOME/.tmux/plugins"
+echo "Expected: tpm, tmux-sensible, tmux-resurrect, tmux-continuum, tmux-yank"
 
 echo "=== Done. Start tmux with: tmux ==="
